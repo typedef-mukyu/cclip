@@ -10,6 +10,8 @@ def configWizard():
             r = input("Are you sure you want to reset the configuration? (Y / N) > ")
             if len(r) > 0 and r[0].upper() == "Y":
                 os.remove("canvas.cfg")
+            else:
+                exit()
         cfgFile = os.open("canvas.cfg", os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         print("Enter the URL to your Canvas instance, for example https://canvas.instructure.com")
         r = input("> ")
