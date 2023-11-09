@@ -61,9 +61,9 @@ void answer_fifo(int& fd, char* filename, unordered_map<string, string>* config_
             //int nullFD = open("/dev/null", O_WRONLY);
             //dup2(nullFD, 1);
             char* execargs[] = {"submit.py", "-c", string_segments->at(1), "-a", string_segments->at(2), string_segments->at(3), 0};
+            execvp("submit.py", execargs);
             free(buffer);
             delete string_segments;
-            execvp("submit.py", execargs);
             exit(2);
         }
     }

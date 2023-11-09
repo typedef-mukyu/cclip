@@ -56,6 +56,7 @@ def get_courses():
         reader = csv.DictReader(csvfile, fieldnames = ("course_id", "name", "score", "grade"))
         for row in reader:
             courses.append(row)
+    os.remove("output.csv")
     return courses
 
 
@@ -76,7 +77,9 @@ def get_assignments(course_id):
         for row in reader:
             row["course_id"] = course_id
             assignments.append(row)
+    os.remove("output.csv")
     return assignments
+    
 def asgn_menu(course_id):
     while 1:
         clrscr()
