@@ -29,7 +29,7 @@ def submit_prompt(assignment):
         buffer = input("> ")
         if os.access(str(buffer), os.R_OK):
             mbpipe = os.open(".ui_fifo", os.O_WRONLY)
-            os.write(mbpipe, str.encode("submit " + str(assignment["course_id"]) + " " + str(assignment["assignment_id"]) + str(buffer)))
+            os.write(mbpipe, str.encode("submit " + str(assignment["course_id"]) + " " + str(assignment["asgn_id"]) + " " + str(buffer)))
             os.close(mbpipe)
             time.sleep(5)
         elif buffer == "" or buffer == None:

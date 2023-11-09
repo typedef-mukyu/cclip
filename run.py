@@ -27,8 +27,6 @@ def startProg():
     if msgbroker_pid == -1:
         raise OSError("Could not fork the process")
     elif msgbroker_pid == 0:
-        os.dup2(os.open("/dev/null", os.O_WRONLY), 1)
-        os.dup2(os.open("/dev/null", os.O_RDONLY), 0)
         os.execvp("msgbroker", ("msgbroker",))
     print("Message broker is starting up. Please wait...")
     time.sleep(3)
