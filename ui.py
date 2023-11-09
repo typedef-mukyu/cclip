@@ -79,6 +79,8 @@ def get_assignments(course_id):
     return assignments
 def asgn_menu(course_id):
     while 1:
+        clrscr()
+        print("Loading assignments, please wait...")
         asgn_list = get_assignments(course_id)
         clrscr()
         if len(asgn_list) == 0:
@@ -95,16 +97,20 @@ def asgn_menu(course_id):
                 return
             else:
                 break
+        submit_prompt(asgn_list[i-1])
             
         
 
 def course_menu():
     while 1:
+        clrscr()
+        print("Loading courses, please wait...")
         course_list = get_courses()
         clrscr()
         if len(course_list) == 0:
             print("You are not enrolled in any active courses. Exiting...")
             exit(0)
+        print(" #", "Name".ljust(60), "Score", "Grade")
         for i in range(len(course_list)):
             print(str(i + 1).rjust(2), course_list[i]["name"][:60].ljust(60), ("" if course_list[i]["score"] == "" else ("%.2f" % float(course_list[i]["score"]))).rjust(6), course_list[i]["grade"])
         while 1:
