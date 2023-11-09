@@ -100,7 +100,7 @@ def asgn_menu(course_id):
                 return
             else:
                 break
-        submit_prompt(asgn_list[i-1])
+        submit_prompt(asgn_list[int(buffer)-1])
             
         
 
