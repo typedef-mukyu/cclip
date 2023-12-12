@@ -53,9 +53,9 @@ def get_courses(credbook, l=20, o = 0):
 
     courses = response.json()
     for c in courses:
-        print("" if c["id"] is None else c["id"], ","
-            , "" if c["course_code"] is None else c["course_code"], "," 
-            , "" if ("computed_current_score" not in c["enrollments"][0]) or (c["enrollments"][0]["computed_current_score"] is None) else c["enrollments"][0]["computed_current_score"] , "," 
+        print("" if c["id"] is None else c["id"], "\t"
+            , "" if c["course_code"] is None else c["course_code"], "\t" 
+            , "" if ("computed_current_score" not in c["enrollments"][0]) or (c["enrollments"][0]["computed_current_score"] is None) else c["enrollments"][0]["computed_current_score"] , "\t" 
             , "" if ("computed_current_grade" not in c["enrollments"][0]) or (c["enrollments"][0]["computed_current_grade"] is None) else c["enrollments"][0]["computed_current_grade"] , sep="")
 def get_assignments(credbook, courseid, l = 20, o = 0):
     get_url = credbook["url"] + "/api/v1/courses/" + str(courseid) + "/assignments"
@@ -63,9 +63,9 @@ def get_assignments(credbook, courseid, l = 20, o = 0):
     response.raise_for_status()
     assignments = response.json()
     for a in assignments:
-        print("" if a["id"] is None else a["id"], ","
-            , "" if a["name"] is None else a["name"], "," 
-            , "" if a["due_at"] is None else a["due_at"], "," 
+        print("" if a["id"] is None else a["id"], "\t"
+            , "" if a["name"] is None else a["name"], "\t" 
+            , "" if a["due_at"] is None else a["due_at"], "\t" 
             , "" if a["points_possible"] is None else a["points_possible"] , sep="")
 def main():
     argbook = parse_args()

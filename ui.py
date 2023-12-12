@@ -6,7 +6,8 @@ import csv
 import time
 import dateutil
 import dateutil.parser
-clrscr = lambda: print("\033c\033[3J", end='')
+# clrscr = lambda: print("\033c\033[3J", end='')
+clrscr = lambda: None
 class course:
     course_id = None
     name = ""
@@ -43,41 +44,41 @@ def submit_prompt(assignment):
 def get_courses():
     mbpipe = os.open(".ui_fifo", os.O_WRONLY)
     line = ""
-    if os.path.exists("output.csv"):
-        os.remove("output.csv")
+    if os.path.exists("output.tsv"):
+        os.remove("output.tsv")
     os.write(mbpipe, str.encode("get courses 100 0"))
     os.close(mbpipe)
     while 1:
         courses = list()
-        time.sleep(5)
-        if os.path.isfile("output.csv"): #I'd use a do-while loop here, but there is no such thing in Python.
+        time.sleep(8)
+        if os.path.isfile("output.tsv"): #I'd use a do-while loop here, but there is no such thing in Python.
             break
-    with open("output.csv", newline="") as csvfile:
-        reader = csv.DictReader(csvfile, fieldnames = ("course_id", "name", "score", "grade"))
+    with open("output.tsv", newline="") as csvfile:
+        reader = csv.DictReader(csvfile, fieldnames = ("course_id", "name", "score", "grade"), delimiter="\t")
         for row in reader:
             courses.append(row)
-    os.remove("output.csv")
+    os.remove("output.tsv")
     return courses
 
 
 def get_assignments(course_id):
     mbpipe = os.open(".ui_fifo", os.O_WRONLY)
     line = ""
-    if os.path.exists("output.csv"):
-        os.remove("output.csv")
+    if os.path.exists("output.tsv"):
+        os.remove("output.tsv")
     os.write(mbpipe, str.encode("get assignments "+ str(course_id) +" 100 0"))
     os.close(mbpipe)
     while 1:
         assignments = list()
-        time.sleep(5)
-        if os.path.isfile("output.csv"): #I'd use a do-while loop here, but there is no such thing in Python.
+        time.sleep(8)
+        if os.path.isfile("output.tsv"): #I'd use a do-while loop here, but there is no such thing in Python.
             break
-    with open("output.csv", newline="") as csvfile:
-        reader = csv.DictReader(csvfile, fieldnames = ("asgn_id", "name", "duedate", "points"))
+    with open("output.tsv", newline="") as csvfile:
+        reader = csv.DictReader(csvfile, fieldnames = ("asgn_id", "name", "duedate", "points"), delimiter="\t")
         for row in reader:
             row["course_id"] = course_id
             assignments.append(row)
-    os.remove("output.csv")
+    os.remove("output.tsv")
     return assignments
     
 def asgn_menu(course_id):
