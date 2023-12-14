@@ -1,132 +1,159 @@
 #!/usr/bin/python3
 import os
-import sys
-from collections import defaultdict
 import csv
 import time
 import dateutil
 import dateutil.parser
-# clrscr = lambda: print("\033c\033[3J", end='')
-clrscr = lambda: None
-class course:
-    course_id = None
-    name = ""
-    score = ""
-    grade = ""
-    assignments = list()
-def convUTCTimeStamp(ts):
-    if ts == "":
-        return ""
-    it = dateutil.parser.parse(ts)
-    it = it.replace(tzinfo=dateutil.tz.tzutc())
-    isots = it.astimezone(dateutil.tz.tzlocal()).isoformat()
-    ots = (isots[:10] + " " + isots[11:16])
-    return (ots)
+from msgstrings import msgStrings
 
-def submit_prompt(assignment):
-    buffer = ""
-    while not os.access(str(buffer), os.R_OK):
-        print("Please enter the path to the file you want to submit, or press Enter to cancel")
-        buffer = input("> ")
-        if os.access(str(buffer), os.R_OK):
-            mbpipe = os.open(".ui_fifo", os.O_WRONLY)
-            os.write(mbpipe, str.encode("submit " + str(assignment["course_id"]) + " " + str(assignment["asgn_id"]) + " " + str(buffer)))
-            os.close(mbpipe)
-            time.sleep(5)
-        elif buffer == "" or buffer == None:
+clrscr = lambda: print("\033c\033[3J", end='') # prints escape characters to clear the terminal
+
+# Opens the FIFO between this and the message broker service, writes into it, and closes it
+# Using this function ensures the FIFO is not inadvertently left open.
+def writeToFifo(msg: str) -> None:
+    mbPipe = os.open(".ui_fifo", os.O_WRONLY)
+    os.write(mbPipe, str.encode(msg))
+    os.close(mbPipe)
+
+# Prepares a message requesting to submit the file at `fileName` to `assignment`.
+# This is later sent to the message broker using writeToFifo().
+def createSubmitCommand(assignment: dict, fileName: str) -> str:
+    return ("submit " + 
+            str(assignment["courseId"]) + " " + 
+            str(assignment["asgnId"]) + " " + 
+            str(fileName))
+
+def waitForFile(fileName: str, delay: float=8) -> None:
+    while(1):
+        time.sleep(delay)
+        if os.path.isfile(fileName): 
             return
-        else:
-            print("The selected file could not be read. Please try another file.")
-        
 
-
-
-def get_courses():
-    mbpipe = os.open(".ui_fifo", os.O_WRONLY)
-    line = ""
+def removeFileIfExists(fileName: str) -> None:
     if os.path.exists("output.tsv"):
         os.remove("output.tsv")
-    os.write(mbpipe, str.encode("get courses 100 0"))
-    os.close(mbpipe)
-    while 1:
-        courses = list()
-        time.sleep(8)
-        if os.path.isfile("output.tsv"): #I'd use a do-while loop here, but there is no such thing in Python.
-            break
-    with open("output.tsv", newline="") as csvfile:
-        reader = csv.DictReader(csvfile, fieldnames = ("course_id", "name", "score", "grade"), delimiter="\t")
+
+# Converts a tab-delimited data file at fileName to a list of dicts corresponding to each row.
+# fieldNames contains the key names for each column of data.
+def tsvToList(fileName: str, fieldNames: tuple or list) -> list:
+    output = list()
+    with open(fileName, newline="") as csvFile:
+        reader = csv.DictReader(csvFile, fieldnames=fieldNames, delimiter="\t") 
         for row in reader:
-            courses.append(row)
+            output.append(row)
+    return output
+
+def execWithMessage(message: str, execFunction, *args):
+    clrscr()
+    print(message)
+    output = execFunction(*args)
+    clrscr()
+    return output
+
+# Converts an ISO 8601 UTC time stamp string to the local time of the system.
+# For example: convUTCTimeStamp("2024-01-01T00:00:00Z") would return
+# "2023-12-31 16:00" on a system set to Pacific Standard Time.
+def convUTCTimeStamp(timeStamp: str) -> str:
+    if timeStamp == "": 
+        return ""
+    isoTimeObj = dateutil.parser.parse(timeStamp) # convert the UTC timestamp to a datetime object
+    isoTimeObj = isoTimeObj.replace(tzinfo=dateutil.tz.tzutc()) # set the object's time zone to UTC
+    isoTimeObj = isoTimeObj.astimezone(dateutil.tz.tzlocal()) # convert the object to local system time
+    outputTimeStamp = isoTimeObj.isoformat() # create an ISO 8601 format string from the datetime object
+    outputTimeStamp = (outputTimeStamp[:10] + " " + outputTimeStamp[11:16]) # extract only the date and time from the string
+    return outputTimeStamp
+
+
+def submitPrompt(assignment: dict) -> None:
+    fileName = ""
+    while not os.access(str(fileName), os.R_OK):
+        print(msgStrings["FilePrompt"])
+        fileName = input("> ")
+        if os.access(str(fileName), os.R_OK):
+            writeToFifo(createSubmitCommand(assignment, fileName))
+            time.sleep(5)
+        elif fileName == "" or fileName == None: # no input returns to assignment lists
+            return
+        else:
+            print(msgStrings["FileErr"])
+        
+def getCourses() -> list[dict]:
+    removeFileIfExists("output.tsv")
+    writeToFifo("get courses")    
+    waitForFile("output.tsv")
+    courses = tsvToList("output.tsv", ("courseId", "name", "score", "grade"))
     os.remove("output.tsv")
     return courses
 
-
-def get_assignments(course_id):
-    mbpipe = os.open(".ui_fifo", os.O_WRONLY)
-    line = ""
-    if os.path.exists("output.tsv"):
-        os.remove("output.tsv")
-    os.write(mbpipe, str.encode("get assignments "+ str(course_id) +" 100 0"))
-    os.close(mbpipe)
-    while 1:
-        assignments = list()
-        time.sleep(8)
-        if os.path.isfile("output.tsv"): #I'd use a do-while loop here, but there is no such thing in Python.
-            break
-    with open("output.tsv", newline="") as csvfile:
-        reader = csv.DictReader(csvfile, fieldnames = ("asgn_id", "name", "duedate", "points"), delimiter="\t")
-        for row in reader:
-            row["course_id"] = course_id
-            assignments.append(row)
+def getAssignments(courseId: int or str) -> list[dict]:
+    removeFileIfExists("output.tsv")
+    writeToFifo("get assignments "+ str(courseId))
+    waitForFile("output.tsv")
+    assignments = tsvToList("output.tsv", ("asgnId", "name", "dueDate", "points"))
+    for a in assignments:
+        a["courseId"] = courseId # this is not shown directly, but is used in the submit() call
     os.remove("output.tsv")
     return assignments
-    
-def asgn_menu(course_id):
+
+def printAsgnEntries(asgnList: list[dict]) -> None:
+    print(" #", msgStrings["Name"].ljust(50), msgStrings["DueDate"].ljust(16), msgStrings["Points"])
+    for i in range(len(asgnList)):
+        print(str(i + 1).rjust(2), # selection number, padded with spaces to 2 digits and right-aligned
+             asgnList[i]["name"][:50].ljust(50), # assignment name, truncated or padded to 50 chars
+             convUTCTimeStamp(asgnList[i]["dueDate"]).ljust(16), # due date/time, padded to 16 chars
+             # Some assignments will be undated, so padding an empty string keeps alignment in the UI.
+             str(asgnList[i]["points"]).rjust(5)) # Points an assignment is worth
+
+# "90" -> "90.00"
+def fixTwoDecimals(n: str) -> str:
+    if n == "":
+        return ""
+    else: 
+        return ("%.2f" % float(n))
+
+def printCourseEntries(courseList: list[dict]) -> None:
+    print(" #", msgStrings["Name"].ljust(60), msgStrings["Score"], msgStrings["Grade"]) # UI header
+    for i in range(len(courseList)):
+        print(str(i + 1).rjust(2), # 
+            courseList[i]["name"][:60].ljust(60), 
+            (fixTwoDecimals(courseList[i]["score"])).rjust(6), # The numeric score of a course (e.g., 97.12)
+            courseList[i]["grade"]) # The letter grade of a course (A, A-, etc.)
+
+# Prompts until a nonnegative number not higher than maxValue is entered.
+def validateInput(inputPrompt: str, errPrompt: str, maxValue: int) -> int:
     while 1:
-        clrscr()
-        print("Loading assignments, please wait...")
-        asgn_list = get_assignments(course_id)
-        clrscr()
-        if len(asgn_list) == 0:
-            print("No assignments are available for this course.")
+        buffer = input(inputPrompt % str(maxValue))
+        if (not buffer.isnumeric()) or int(buffer) > maxValue:
+            print(errPrompt)
+        else:
+            return int(buffer)
+
+def asgnMenu(courseId: int or str) -> None:
+    while 1:
+        asgnList = execWithMessage(msgStrings["AsgnLoad"], getAssignments, courseId)
+        if len(asgnList) == 0:
+            print(msgStrings["NoAsgn"])
             return
-        print(" #", "Name".ljust(50), "Due Date".ljust(16), "Pts")
-        for i in range(len(asgn_list)):
-            print(str(i + 1).rjust(2), asgn_list[i]["name"][:50].ljust(50), convUTCTimeStamp(asgn_list[i]["duedate"]).ljust(16), str(asgn_list[i]["points"]).rjust(5))
-        while 1:
-            buffer = input("\nPlease enter an assignment number 1 ~ " + str(len(asgn_list)) + ", or 0 to return to the course menu > ")
-            if (not buffer.isnumeric()) or int(buffer) > len(asgn_list):
-                print("Invalid entry, please try again.")
-            elif int(buffer) == 0:
-                return
-            else:
-                break
-        submit_prompt(asgn_list[int(buffer)-1])
+        printAsgnEntries(asgnList)
+        asgnChoice = validateInput(msgStrings["AsgnPrompt"], msgStrings["BadEntry"], len(asgnList))
+        if asgnChoice == 0:
+            return
+        submitPrompt(asgnList[asgnChoice-1]) # prompts for file to submit to selected assignment
             
-        
-
-def course_menu():
+def courseMenu() -> None:
     while 1:
-        clrscr()
-        print("Loading courses, please wait...")
-        course_list = get_courses()
-        clrscr()
-        if len(course_list) == 0:
-            print("You are not enrolled in any active courses. Exiting...")
+        courseList = execWithMessage(msgStrings["CourseLoad"], getCourses) # loading courses message
+        if len(courseList) == 0:
+            print(msgStrings["NoCourse"])
             exit(0)
-        print(" #", "Name".ljust(60), "Score", "Grade")
-        for i in range(len(course_list)):
-            print(str(i + 1).rjust(2), course_list[i]["name"][:60].ljust(60), ("" if course_list[i]["score"] == "" else ("%.2f" % float(course_list[i]["score"]))).rjust(6), course_list[i]["grade"])
-        while 1:
-            buffer = input("\nPlease enter a course number 1 ~ " + str(len(course_list)) + ", or 0 to exit > ")
-            if (not buffer.isnumeric()) or int(buffer) > len(course_list):
-                print("Invalid entry, please try again.")
-            elif int(buffer) == 0:
-                exit(0)
-            else:
-                break
-        asgn_menu(int(course_list[int(buffer)-1]["course_id"]))
+        printCourseEntries(courseList)
+        courseChoice = validateInput(msgStrings["CoursePrompt"], msgStrings["BadEntry"], len(courseList))
+        if courseChoice == 0: # menu choices are one-indexed, 0 exits program
+            exit(0)
+        asgnMenu(int(courseList[courseChoice - 1]["courseId"])) # shows assignments of selected course
 
-        
-        
-course_menu()
+def main():
+    courseMenu()
+
+if __name__ == "__main__":        
+    main()

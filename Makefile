@@ -1,5 +1,5 @@
 CPPC=g++
-CC_ARGS=-Wno-write-strings
+CC_ARGS=-Wno-write-strings -fpermissive -g
 
 all: msgbroker .cfg_fifo .getter_fifo .submit_fifo .ui_fifo
 msgbroker: msgbroker.cpp
